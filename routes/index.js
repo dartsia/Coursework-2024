@@ -4,10 +4,11 @@ const mainController = require('../controllers/mainController');
 const authController = require('../controllers/authController');
 
 /* GET home page. */
-router.get('/', mainController.schedule);
+router.get('/', mainController.scheduleTable);
+router.post('/generate-schedule', mainController.generateSchedule);
 
 
-router.post(
+/*router.post(
     '/registry',
      (req, res) => {
     const errors = signUpValidation(req);
@@ -25,7 +26,7 @@ router.post(
       body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long'),
     ],
     authController.login
-);
+);*/
 
 // router.post('/forgot-password', authController.forgotPassword);
 
@@ -38,6 +39,6 @@ router.post(
 //   }
 // });
 
-router.get('/logout', authController.logout);
+//router.get('/logout', authController.logout);
 
 module.exports = router;
