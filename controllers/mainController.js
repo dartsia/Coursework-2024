@@ -1,16 +1,46 @@
 const conn = require('../models/Schedule')
 const soldiers = require('../models/Soldiers')
 
-module.exports.scheduleTable = function(req, res) {
+module.exports.scheduleTable = function (req, res) { 
     const sql = "SELECT * FROM schedule";
-    conn.query(sql, function(err, data) {
+    conn.query(sql, function (err, data) {
         if (err) {
             console.error('Error fetching schedule:', err);
             return res.status(500).send('Internal Server Error');
         }
-        res.json(data); // Відправка даних у вигляді JSON
+
+        const formattedRows = data.rows.map(row => ({ 
+            ...row,
+            date: row.date.toISOString().split('T')[0] // Форматування дати
+        }));
+        
+        res.render('schedule', { title: 'Duty Schedule', soldiers: formattedRows });
+        // res.json(formattedRows);
     });
 };
+
+
+module.exports.scheduleOne = function (req, res) {
+    let name = req.params.id;
+    const sql = "SELECT * FROM schedule WHERE soldier_name = $1";
+    conn.query(sql, [name], function (err, data) {
+        if (err) {
+            console.error('Error fetching schedule:', err);
+            return res.status(500).send('Internal Server Error');
+        }
+        if (data.length == 0) {
+            res.status(404).send('Військового з таким іменем не знайдено');
+        } else {
+            const formattedRows = data.rows.map(row => ({ 
+                ...row,
+                date: row.date.toISOString().split('T')[0] // Форматування дати
+            }));
+            
+            res.render('schedule', { title: 'Duty Schedule', soldiers: formattedRows });
+            //res.json(formattedRows);
+        }
+    });
+}
 
 
 
@@ -36,47 +66,59 @@ module.exports.generateSchedule = async function (req, res) {
         });
 
         for (let i = 1; i <= daysInMonth; i++) {
-            const date = `${year}-${(month + 1).toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`;
+            const rawDate = new Date(year, month, i);
+            //const date = rawDate.toISOString().split('T')[0];
+            const date = `${rawDate.getFullYear()}-${(rawDate.getMonth() + 1)
+                .toString()
+                .padStart(2, '0')}-${rawDate.getDate().toString().padStart(2, '0')}`;
+
             const isWeekend = weekendDays.includes(date);
 
-            soldiers.forEach((soldier) => {
-                if (
-                    soldier.gender === 'female' || // Не включати жінок
-                    soldier.holidays.includes(date) || 
-                    soldier.sickLeaves.includes(date) ||
-                    (soldier.lastDuty && soldier.lastDuty.date === date - 1) || // Два дні поспіль
-                    (soldier.lastDuty && soldier.lastDuty.type === 'outside' && soldier.lastDuty.date === date - 1) // Після чергування за межами
-                ) {
-                    return;
-                }
-
-                if (isWeekend) {
-                    const week = Math.ceil(i / 7);
-                    if (soldier.weekendWeeks.includes(week)) {
-                        return; // Не можна два тижні поспіль у вихідні
-                    }
-                }
-
-                // Призначаємо чергування
-                if (!isWeekend && soldier.unitDuties < 5) {
-                    duties.push({ date, soldier: soldier.name, type: 'unit' });
-                    soldier.unitDuties++;
-                    soldier.lastDuty = { date: i, type: 'unit' };
-                } else if (isWeekend && soldier.outsideDuties < 5) {
-                    duties.push({ date, soldier: soldier.name, type: 'outside' });
-                    soldier.outsideDuties++;
-                    soldier.lastDuty = { date: i, type: 'outside' };
-                    soldier.weekendWeeks.push(Math.ceil(i / 7));
-                }
+            // Список доступних солдатів для чергувань
+            const availableSoldiers = soldiers.filter((soldier) => {
+                return (
+                    soldier.gender !== 'female' && // Виключити жінок
+                    !soldier.holidays.includes(date) &&
+                    !soldier.sickLeaves.includes(date) &&
+                    (!soldier.lastDuty || soldier.lastDuty.date !== date) && // Уникнути повторення в той самий день
+                    (!soldier.lastDuty || soldier.lastDuty.date !== `${year}-${(month + 1).toString().padStart(2, '0')}-${(i - 1).toString().padStart(2, '0')}`) // Не чергувати два дні поспіль
+                );
             });
-        }
 
-        console.log("Generated duties:", duties);
+            // Перемішуємо список доступних солдатів для рівномірного розподілу
+            shuffleArray(availableSoldiers);
+
+            // Призначаємо чергування у частині
+            const unitDutySoldier = availableSoldiers.find((soldier) => soldier.unitDuties < 5);
+            if (unitDutySoldier) {
+                duties.push({ date, soldier: unitDutySoldier.name, type: 'У частині' });
+                unitDutySoldier.unitDuties++;
+                unitDutySoldier.lastDuty = { date, type: 'У частині' };
+                availableSoldiers.splice(unitDutySoldier.name, 1);
+            }
+
+            // Призначаємо чергування поза частиною
+            const outsideDutySoldier = availableSoldiers.find((soldier) => {
+                const week = Math.ceil(i / 7);
+                return soldier.outsideDuties < 5 && (!isWeekend || !soldier.weekendWeeks.includes(week));
+            });
+
+            if (outsideDutySoldier) {
+                duties.push({ date, soldier: outsideDutySoldier.name, type: 'Поза частиною' });
+                outsideDutySoldier.outsideDuties++;
+                outsideDutySoldier.lastDuty = { date, type: 'Поза частиною' };
+                if (isWeekend) {
+                    outsideDutySoldier.weekendWeeks.push(Math.ceil(i / 7));
+                }
+            }
+        }
 
         // Записуємо в базу
         const sql = "INSERT INTO schedule (date, soldier_name, type) VALUES ($1, $2, $3)";
         for (const duty of duties) {
-            await conn.query(sql, [duty.date, duty.soldier, duty.type]);
+            const dateOnly = duty.date.split('T')[0]; // Якщо `duty.date` має формат ISO, наприклад, `2024-11-17T00:00:00.000Z`
+            console.log(dateOnly);
+            await conn.query(sql, [dateOnly, duty.soldier, duty.type]);
         }
 
         res.status(201).send('Duty schedule generated and saved to database.');
@@ -85,8 +127,6 @@ module.exports.generateSchedule = async function (req, res) {
         res.status(500).send('Internal Server Error');
     }
 };
-
-
 
 // Допоміжні функції
 function getDaysInMonth(year, month) {
@@ -102,5 +142,12 @@ function getWeekendDays(year, month) {
         }
     }
     return weekendDays;
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
 }
 

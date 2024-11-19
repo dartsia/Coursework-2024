@@ -24,7 +24,7 @@ client
             if (err) {
                 console.error('Error executing query', err);
             } else {
-                console.log('Query result:', result.rows);
+                //console.log('Query result:', result.rows);
             }
 
             // Close the connection when done

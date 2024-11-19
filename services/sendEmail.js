@@ -1,4 +1,16 @@
-const path = require('path')
+const sendgrid = require ('@sendgrid/mail');
+
+
+sendgrid.setApiKey(process.env.SENDGRID_API_KEY);
+
+ const sendEmail = ({ to, from, subject, text, html }) => {
+    const msg = { to, from, subject, text };
+    return sendgrid.send(msg);
+};
+
+module.exports = sendEmail;
+
+/*const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const nodemailer = require("nodemailer");
 
@@ -25,4 +37,4 @@ module.exports = async (sender, receiver, subject, text) => {
     } catch (error) {
         console.log("Email NOT sent." + error);
     }
-}
+}*/

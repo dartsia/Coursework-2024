@@ -15,6 +15,9 @@ const PORT = process.env.PORT || 3000;
   cookie: { secure: false } 
 }));*/
 
+// view engine setup
+app.set('views', path.join(__dirname, 'view'));
+app.set('view engine', 'hbs');
 
 app.use(express.json());
 app.use('/', webRoutes);
