@@ -1,5 +1,5 @@
-const conn = require('../models/Schedule')
-const {soldiers} = require('../models/Soldiers')
+const conn = require('../models/Schedule');
+const { fetchSoldiers } = require('../models/Soldiers');
 
 module.exports.scheduleTable = function (req, res) { 
     const sql = "SELECT * FROM schedule";
@@ -54,20 +54,14 @@ module.exports.generateSchedule = async function (req, res) {
         const daysInMonth = getDaysInMonth(year, month);
         const duties = [];
 
+        // Завантаження солдатів з бази
+        const soldiers = await fetchSoldiers();
+
         // Очищення попередніх даних з таблиці schedule
         await conn.query("DELETE FROM schedule");
 
-        // Скидаємо дані по обов'язках
-        soldiers.soldiers.forEach((soldier) => {
-            soldier.unitDuties = 0;
-            soldier.outsideDuties = 0;
-            soldier.lastDuty = null; // Останнє чергування
-            soldier.weekendWeeks = []; // Тижні чергувань у вихідні
-        });
-
-        for (let i = 1; i <= daysInMonth; i++) {
+        for (let i = 2; i <= daysInMonth+1; i++) {
             const rawDate = new Date(year, month, i);
-            //const date = rawDate.toISOString().split('T')[0];
             const date = `${rawDate.getFullYear()}-${(rawDate.getMonth() + 1)
                 .toString()
                 .padStart(2, '0')}-${rawDate.getDate().toString().padStart(2, '0')}`;
@@ -75,7 +69,7 @@ module.exports.generateSchedule = async function (req, res) {
             const isWeekend = weekendDays.includes(date);
 
             // Список доступних солдатів для чергувань
-            const availableSoldiers = soldiers.soldiers.filter((soldier) => {
+            const availableSoldiers = soldiers.filter((soldier) => {
                 return (
                     soldier.gender !== 'female' && // Виключити жінок
                     !soldier.holidays.includes(date) &&
@@ -89,12 +83,13 @@ module.exports.generateSchedule = async function (req, res) {
             shuffleArray(availableSoldiers);
 
             // Призначаємо чергування у частині
-            const unitDutySoldier = availableSoldiers.find((soldier) => soldier.unitDuties < 5);
-            if (unitDutySoldier) {
+            const unitDutySoldierIndex = availableSoldiers.findIndex((soldier) => soldier.unitDuties < 5);
+            if (unitDutySoldierIndex !== -1) {
+                const unitDutySoldier = availableSoldiers[unitDutySoldierIndex];
                 duties.push({ date, soldier: unitDutySoldier.name, type: 'У частині' });
                 unitDutySoldier.unitDuties++;
                 unitDutySoldier.lastDuty = { date, type: 'У частині' };
-                availableSoldiers.splice(unitDutySoldier.name, 1);
+                availableSoldiers.splice(unitDutySoldierIndex, 1); // Видаляємо солдата з доступних
             }
 
             // Призначаємо чергування поза частиною

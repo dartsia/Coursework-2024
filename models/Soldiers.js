@@ -1,9 +1,7 @@
-const postgres = require("node-postgres");
 const { Client } = require('pg');
-const path = require('path')
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-// Підключення до бази даних
 const client = new Client({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
@@ -12,31 +10,30 @@ const client = new Client({
     database: process.env.DB_DATABASE
 });
 
-let soldiers;
+async function fetchSoldiers() {
+    await client.connect(); // Підключаємося до бази
+    try {
+        const result = await client.query('SELECT * FROM soldiers');
+        return result.rows.map(soldier => ({
+            ...soldier,
+            holidays: soldier.holidays || [], // Ініціалізація
+            sickLeaves: soldier.sick_leaves || [],
+            unitDuties: 0,
+            outsideDuties: 0,
+            lastDuty: null,
+            weekendWeeks: []
+        }));
+    } catch (err) {
+        console.error('Error fetching soldiers:', err);
+        throw err;
+    }
+}
 
-// Підключення до PostgreSQL
-client
-    .connect()
-    .then(() => {
-        //console.log('Connected to PostgreSQL database');
-
-        client.query('SELECT * FROM soldiers', (err, result) => {
-            if (err) {
-                console.error('Error executing query', err);
-            } else {
-                soldiers = result.rows;
-                //console.log(soldiers);
-            }
-        });
-    })
-    .catch((err) => {
-        console.error('Error connecting to PostgreSQL database', err);
-    });
-    
 module.exports = {
-    soldiers,
+    fetchSoldiers,
     client
 };
+
 //console.log(module.exports);
 
 // module.exports = [
