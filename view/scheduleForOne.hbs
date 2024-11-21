@@ -1,0 +1,36 @@
+<!-- Search Results Section -->
+<section class="page-section" id="search-results">
+  <div class="container">
+    <h2 class="text-center mt-0">Результати пошуку</h2>
+    <hr class="divider my-4">
+
+    <!-- Кнопка повернення назад -->
+    <div class="d-flex justify-content-between mb-4">
+      <a href="/" class="btn btn-secondary">Повернутися назад</a>
+    </div>
+
+    <!-- Таблиця з результатами пошуку -->
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Дата</th>
+            <th scope="col">Тип</th>
+            <th scope="col">Ім'я</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each soldiers as |soldier index|}}
+          <tr>
+            <th scope="row">{{soldier.id}}</th>
+            <td>{{soldier.date}}</td>
+            <td>{{soldier.type}}</td>
+            <td>{{soldier.soldier_name}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

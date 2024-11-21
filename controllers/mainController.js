@@ -1,50 +1,46 @@
-const conn = require('../models/Schedule');
+const pool = require('../models/Schedule');
 const { fetchSoldiers } = require('../models/Soldiers');
 
-module.exports.scheduleTable = function (req, res) { 
+module.exports.scheduleTable = async function (req, res) { 
     const sql = "SELECT * FROM schedule";
-    conn.query(sql, function (err, data) {
-        if (err) {
-            console.error('Error fetching schedule:', err);
-            return res.status(500).send('Internal Server Error');
+    try {
+        const data = await pool.query(sql); // Використання pool замість conn
+        const formattedRows = data.rows.map(row => ({ 
+            ...row,
+            date: row.date.toISOString().split('T')[0] // Форматування дати
+        }));
+
+        res.render('schedule', { title: 'Duty Schedule', soldiers: formattedRows });
+    } catch (err) {
+        console.error('Error fetching schedule:', err);
+        res.status(500).send('Internal Server Error');
+    }
+};
+
+module.exports.scheduleOne = async function (req, res) {
+    const name = req.query.name;
+    const sql = "SELECT * FROM schedule WHERE soldier_name ILIKE $1";
+    try {
+        const data = await pool.query(sql, [`%${name}%`]); // Використання pool замість conn
+
+        if (data.rows.length === 0) {
+            return res.status(404).send('Військового з таким іменем не знайдено');
         }
 
         const formattedRows = data.rows.map(row => ({ 
             ...row,
             date: row.date.toISOString().split('T')[0] // Форматування дати
         }));
-        
-        res.render('schedule', { title: 'Duty Schedule', soldiers: formattedRows });
-        // res.json(formattedRows);
-    });
+
+        res.render('scheduleForOne', { title: 'Duty Schedule', soldiers: formattedRows });
+    } catch (err) {
+        console.error('Error fetching schedule for one soldier:', err);
+        res.status(500).send('Internal Server Error');
+    }
 };
 
-
-module.exports.scheduleOne = function (req, res) {
-    let name = req.params.id;
-    const sql = "SELECT * FROM schedule WHERE soldier_name = $1";
-    conn.query(sql, [name], function (err, data) {
-        if (err) {
-            console.error('Error fetching schedule:', err);
-            return res.status(500).send('Internal Server Error');
-        }
-        if (data.length == 0) {
-            res.status(404).send('Військового з таким іменем не знайдено');
-        } else {
-            const formattedRows = data.rows.map(row => ({ 
-                ...row,
-                date: row.date.toISOString().split('T')[0] // Форматування дати
-            }));
-            
-            res.render('schedule', { title: 'Duty Schedule', soldiers: formattedRows });
-            //res.json(formattedRows);
-        }
-    });
-}
-
-
-
 module.exports.generateSchedule = async function (req, res) {
+    const client = await pool.connect(); // Беремо клієнта з пулу
     try {
         const currentDate = new Date();
         const month = currentDate.getMonth();
@@ -57,10 +53,13 @@ module.exports.generateSchedule = async function (req, res) {
         // Завантаження солдатів з бази
         const soldiers = await fetchSoldiers();
 
-        // Очищення попередніх даних з таблиці schedule
-        await conn.query("DELETE FROM schedule");
+        // Починаємо транзакцію
+        await client.query("BEGIN");
 
-        for (let i = 2; i <= daysInMonth+1; i++) {
+        // Очищення попередніх даних з таблиці schedule
+        await client.query("DELETE FROM schedule");
+
+        for (let i = 2; i <= daysInMonth + 1; i++) {
             const rawDate = new Date(year, month, i);
             const date = `${rawDate.getFullYear()}-${(rawDate.getMonth() + 1)
                 .toString()
@@ -108,18 +107,25 @@ module.exports.generateSchedule = async function (req, res) {
             }
         }
 
-        // Записуємо в базу
-        const sql = "INSERT INTO schedule (date, soldier_name, type) VALUES ($1, $2, $3)";
+        // Пакетне вставлення даних в таблицю
+        const insertQuery = `
+            INSERT INTO schedule (date, soldier_name, type) VALUES ($1, $2, $3)
+        `;
         for (const duty of duties) {
-            const dateOnly = duty.date.split('T')[0]; // Якщо `duty.date` має формат ISO, наприклад, `2024-11-17T00:00:00.000Z`
-            //console.log(dateOnly);
-            await conn.query(sql, [dateOnly, duty.soldier, duty.type]);
+            const dateOnly = duty.date.split('T')[0]; // Якщо `duty.date` має формат ISO
+            await client.query(insertQuery, [dateOnly, duty.soldier, duty.type]);
         }
+
+        // Коміт транзакції
+        await client.query("COMMIT");
 
         res.status(201).send('Duty schedule generated and saved to database.');
     } catch (err) {
+        await client.query("ROLLBACK"); // Відкат у разі помилки
         console.error("Error generating schedule:", err);
         res.status(500).send('Internal Server Error');
+    } finally {
+        client.release(); // Завжди звільняємо клієнта
     }
 };
 

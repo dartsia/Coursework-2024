@@ -3,8 +3,23 @@
   <div class="container">
     <h2 class="text-center mt-0">Розклад чергувань</h2>
     <hr class="divider my-4">
+
+    <!-- Пошукова стрічка -->
+    <form action="/schedule-for-one" method="GET" class="d-flex justify-content-center mb-4">
+      <input 
+        type="text" 
+        name="name" 
+        class="form-control w-50 me-2" 
+        placeholder="Введіть ім'я військового..." 
+        required>
+      <button type="submit" class="btn btn-primary">Пошук</button>
+    </form>
+
+    <!-- Кнопка генерації -->
     <div class="table-responsive">
-      <a class="btn btn-primary my-2" href="/generate-schedule">Згенерувати новий розклад</a>
+      <button id="generateScheduleBtn" class="btn btn-primary my-2">Згенерувати новий розклад</button>
+      
+      <!-- Таблиця -->
       <table class="table table-hover table-bordered">
         <thead class="thead-light">
           <tr>
@@ -27,4 +42,26 @@
       </table>
     </div>
   </div>
+  <script>
+  document.getElementById('generateScheduleBtn').addEventListener('click', function () {
+    fetch('/generate-schedule', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(response => {
+        if (response.ok) {
+          alert('Розклад успішно згенеровано!');
+          window.location.reload(); // Перезавантаження сторінки
+        } else {
+          alert('Помилка генерації розкладу.');
+        }
+      })
+      .catch(err => console.error('Error:', err));
+  });
+</script>
 </section>
+
+
+

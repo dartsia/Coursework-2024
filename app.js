@@ -22,6 +22,8 @@ app.set('view engine', 'hbs');
 app.use(express.json());
 app.use('/', webRoutes);
 
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.listen(PORT, () => {
   console.log(`${process.env.PORT}`);
 });
