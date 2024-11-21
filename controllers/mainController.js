@@ -1,5 +1,5 @@
 const conn = require('../models/Schedule')
-const soldiers = require('../models/Soldiers')
+const {soldiers} = require('../models/Soldiers')
 
 module.exports.scheduleTable = function (req, res) { 
     const sql = "SELECT * FROM schedule";
@@ -58,7 +58,7 @@ module.exports.generateSchedule = async function (req, res) {
         await conn.query("DELETE FROM schedule");
 
         // Скидаємо дані по обов'язках
-        soldiers.forEach((soldier) => {
+        soldiers.soldiers.forEach((soldier) => {
             soldier.unitDuties = 0;
             soldier.outsideDuties = 0;
             soldier.lastDuty = null; // Останнє чергування
@@ -75,7 +75,7 @@ module.exports.generateSchedule = async function (req, res) {
             const isWeekend = weekendDays.includes(date);
 
             // Список доступних солдатів для чергувань
-            const availableSoldiers = soldiers.filter((soldier) => {
+            const availableSoldiers = soldiers.soldiers.filter((soldier) => {
                 return (
                     soldier.gender !== 'female' && // Виключити жінок
                     !soldier.holidays.includes(date) &&
@@ -117,7 +117,7 @@ module.exports.generateSchedule = async function (req, res) {
         const sql = "INSERT INTO schedule (date, soldier_name, type) VALUES ($1, $2, $3)";
         for (const duty of duties) {
             const dateOnly = duty.date.split('T')[0]; // Якщо `duty.date` має формат ISO, наприклад, `2024-11-17T00:00:00.000Z`
-            console.log(dateOnly);
+            //console.log(dateOnly);
             await conn.query(sql, [dateOnly, duty.soldier, duty.type]);
         }
 

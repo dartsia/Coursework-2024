@@ -7,6 +7,6 @@ router.get('/', mainController.scheduleTable);
 router.get('/:id', mainController.scheduleOne);
 router.post('/generate-schedule', mainController.generateSchedule);
 
-router.post('/status-change', emailController.sendEmail);
+//router.post('/status-change', emailController.sendEmail);
 
 module.exports = router;
