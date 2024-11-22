@@ -8,7 +8,7 @@ const pool = new Pool({
     user: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
-    max: 10, // Максимальна кількість підключень у пулі (за бажанням)
+    max: 20, // Максимальна кількість підключень у пулі (за бажанням)
     idleTimeoutMillis: 30000, // Час очікування бездіяльності перед закриттям підключення
     connectionTimeoutMillis: 2000, // Час на спробу підключення
 });
@@ -34,6 +34,8 @@ async function fetchSoldiers() {
         client.release();  // Завжди звільняємо клієнта після завершення роботи
     }
 }
+
+
 
 module.exports = {
     fetchSoldiers,

@@ -3,6 +3,9 @@ require('dotenv').config({ path: path.resolve(__dirname, './.env') })
 let webRoutes = require('./routes/index');
 let express = require('express');
 const session = require('express-session');
+const { listenToStateChanges } = require('./controllers/emailSendController');
+listenToStateChanges();
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;

@@ -1,5 +1,5 @@
 const sendEmail = require('../services/sendEmail');
-const {pool} = require('../models/Soldiers');
+const { pool } = require('../models/Soldiers');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
@@ -16,6 +16,7 @@ async function sendLetter({ name, state, relatives_email }) {
     }
 }
 
+
 async function listenToStateChanges() {
     const client = await pool.connect();
     console.log('Connected to database from listenToStateChanges');
@@ -23,7 +24,11 @@ async function listenToStateChanges() {
         await client.query('LISTEN state_changes');
         console.log('Subscribed to channel');
         client.on('notification', async (msg) => {
-            console.log('Notification received:', msg.payload);
+            const payload = JSON.parse(msg.payload);
+            console.log('Notification received:', payload);
+
+            // Надсилаємо листа
+            await sendLetter(payload);
         });
     } catch (error) {
         console.error('Error listening for state changes:', error);
@@ -33,4 +38,4 @@ async function listenToStateChanges() {
 }
 
 // Викликаємо функцію для прослуховування змін
-listenToStateChanges();
+module.exports = { listenToStateChanges };
