@@ -1,5 +1,5 @@
 const sendEmail = require('../services/sendEmail');
-const { pool } = require('../models/Soldiers');
+const pool = require('../models/Schedule');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
@@ -18,12 +18,12 @@ async function sendLetter({ name, state, relatives_email }) {
 
 
 async function listenToStateChanges() {
-    const client = await pool.connect();
+    //const client = await pool.connect();
     console.log('Connected to database from listenToStateChanges');
     try {
-        await client.query('LISTEN state_changes');
+        await pool.query('LISTEN state_changes');
         console.log('Subscribed to channel');
-        client.on('notification', async (msg) => {
+        pool.on('notification', async (msg) => {
             const payload = JSON.parse(msg.payload);
             console.log('Notification received:', payload);
 
@@ -32,8 +32,6 @@ async function listenToStateChanges() {
         });
     } catch (error) {
         console.error('Error listening for state changes:', error);
-    } finally {
-        client.release(); // Завжди звільняємо клієнта
     }
 }
 

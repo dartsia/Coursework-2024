@@ -1,22 +1,14 @@
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, './.env') })
-let webRoutes = require('./routes/index');
 let express = require('express');
-const session = require('express-session');
 const { listenToStateChanges } = require('./controllers/emailSendController');
+let webRoutes = require('./routes/index');
 listenToStateChanges();
 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-
-/*app.use(session({
-  secret: 'qwer', 
-  resave: false,             
-  saveUninitialized: false,  
-  cookie: { secure: false } 
-}));*/
 
 // view engine setup
 app.set('views', path.join(__dirname, 'view'));
